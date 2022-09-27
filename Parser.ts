@@ -90,7 +90,62 @@ export default class Parser {
     }
 
     Expression(): Expression {
-        return this.Literal()
+        return this.AdditiveExpression()
+    }
+
+    /**
+     * AdditiveExpression
+     * : Literal
+     */
+    AdditiveExpression() {
+        return this._BinaryExpression(
+            'MultiplicativeExpression',
+            'ADDITIVE_OPERATOR'
+        )
+    }
+
+    MultiplicativeExpression() {
+        return this._BinaryExpression(
+            'PrimaryExpression',
+            'MULTIPLICATIVE_OPERATOR'
+        )
+    }
+
+    // Helper function to avoid repetition in addition and multiplication expressions
+    _BinaryExpression(builder_name: 'PrimaryExpression' | 'MultiplicativeExpression', 
+    operator_token: 'MULTIPLICATIVE_OPERATOR' | 'ADDITIVE_OPERATOR') {
+        let left: any = this[builder_name]()
+
+        while(this._lookahead?.type === operator_token) {
+            const operator = this._eat(operator_token)?.value
+
+            const right = this[builder_name]()
+
+            left = {
+                type: 'BinaryExpression',
+                operator,
+                left,
+                right
+            }
+        }
+
+        return left
+    }
+
+    ParenthesizedExpression() {
+        this._eat('(')
+        const expression = this.Expression()
+        this._eat(')')
+        return expression
+    }
+
+    PrimaryExpression() {
+        switch(this._lookahead?.type) {
+            case '(':
+                return this.ParenthesizedExpression()
+            default:
+                return this.Literal()
+        }
     }
 
     Literal() {
