@@ -152,7 +152,7 @@ export default class Parser {
         }
     }
 
-    // Relational expression has the lowest priority therefore it's called here
+    // Logical OR expression has the lowest priority therefore it's called here
     // Each expression propages depending on priority
     // Assignment < Relational < Addition < Multiplication < Parenthesis
     Expression(): Expression {
@@ -160,7 +160,7 @@ export default class Parser {
     }
 
     AssignmentExpression(): any {
-        const left = this.RelationalExpression()
+        const left = this.LogicalORExpression()
 
         if (!this._isAssignmentOperator(this._lookahead!.type)) {
             return left
@@ -183,6 +183,14 @@ export default class Parser {
         }
     }
 
+    LogicalORExpression() {
+        return this._LogicalExpression('LogicalANDExpression', 'LOGICAL_OR')
+    }
+
+    LogicalANDExpression() {
+        return this._LogicalExpression('EqualityExpression', 'LOGICAL_AND')
+    }
+
     LeftHandSideExpression() {
         return this.Identifier()
     }
@@ -193,6 +201,13 @@ export default class Parser {
             type: 'Identifier',
             name,
         }
+    }
+
+    EqualityExpression() {
+        return this._BinaryExpression(
+            'RelationalExpression',
+            'EQUALITY_OPERATOR'
+        )
     }
 
     RelationalExpression() {
@@ -221,8 +236,8 @@ export default class Parser {
     }
 
     // Helper function to avoid repetition in addition and multiplication expressions
-    _BinaryExpression(builder_name: 'PrimaryExpression' | 'MultiplicativeExpression' | 'AdditiveExpression', 
-    operator_token: 'MULTIPLICATIVE_OPERATOR' | 'ADDITIVE_OPERATOR' | 'RELATIONAL_OPERATOR') {
+    _BinaryExpression(builder_name: 'PrimaryExpression' | 'RelationalExpression' | 'MultiplicativeExpression' | 'AdditiveExpression', 
+    operator_token: 'EQUALITY_OPERATOR' | 'MULTIPLICATIVE_OPERATOR' | 'ADDITIVE_OPERATOR' | 'RELATIONAL_OPERATOR') {
         let left: any = this[builder_name]()
 
         while(this._lookahead?.type === operator_token) {
@@ -232,6 +247,26 @@ export default class Parser {
 
             left = {
                 type: 'BinaryExpression',
+                operator,
+                left,
+                right
+            }
+        }
+
+        return left
+    }
+
+    _LogicalExpression(builder_name: 'EqualityExpression' | 'LogicalANDExpression', 
+    operator_token: 'LOGICAL_AND' | 'LOGICAL_OR') {
+        let left: any = this[builder_name]()
+
+        while(this._lookahead?.type === operator_token) {
+            const operator = this._eat(operator_token)?.value
+
+            const right = this[builder_name]()
+
+            left = {
+                type: 'LogicalExpression',
                 operator,
                 left,
                 right
@@ -266,6 +301,12 @@ export default class Parser {
                 return this.NumericLiteral()
             case 'STRING':
                 return this.StringLiteral()
+            case 'true':
+                return this.BooleanLiteral(true)
+            case 'false':
+                return this.BooleanLiteral(false)
+            case 'null':
+                return this.NullLiteral()
             default:
                 throw new SyntaxError(`Literal: enexpected literal type`)
         }
@@ -285,6 +326,22 @@ export default class Parser {
         return {
             type: 'NumericLiteral',
             value: Number(token!.value),
+        }
+    }
+
+    BooleanLiteral(bool_type: boolean) {
+        this._eat(bool_type ? 'true' : 'false')
+        return {
+            type: 'BooleanLiteral',
+            value: bool_type
+        }
+    }
+
+    NullLiteral() {
+        this._eat('null')
+        return {
+            type: 'NullLiteral',
+            value: null
         }
     }
 
@@ -309,7 +366,11 @@ export default class Parser {
     }
 
     _isLiteral(token_type: string) {
-        return token_type === 'NUMBER' || token_type === 'STRING'
+        return token_type === 'NUMBER' 
+        || token_type === 'STRING' 
+        || token_type === 'true' 
+        || token_type === 'false'
+        || token_type === 'null'
     }
 
     _checkValidAssignmentTarget(node: any) {

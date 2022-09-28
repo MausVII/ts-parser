@@ -21,12 +21,18 @@ const Spec = [
     [/^\blet\b/, 'let'],
     [/^\bif\b/, "if"],
     [/^\belse\b/, 'else'],
+    [/^\btrue\b/, 'true'],
+    [/^\bfalse\b/, 'false'],
+    [/^\bnull\b/, 'null'],
     
     // Numbers:
     [/^\d+/, 'NUMBER'],
 
     // Identifiers:
     [/^\w+/ ,'IDENTIFIER'],
+
+    // Equality operator | Must be above simple assignment |
+    [/^[=!]=/, 'EQUALITY_OPERATOR'],
 
     // Assignment
     [/^=/, 'SIMPLE_ASSIGNMENT'],
@@ -36,6 +42,10 @@ const Spec = [
     [/^[+\-]/, 'ADDITIVE_OPERATOR'],
     [/^[\*\/]/, 'MULTIPLICATIVE_OPERATOR'],
     [/^[><]=?/, 'RELATIONAL_OPERATOR'],
+    
+    // Logical operators:
+    [/^&&/, 'LOGICAL_AND'],
+    [/^\|\|/, 'LOGICAL_OR'],
 
     // Strings:
     [/^"[^"]*"/, 'STRING'],
