@@ -1,5 +1,6 @@
 import { Token } from "./Models.ts"
-
+// Specs are tried in order, thus, order matters
+// : Numbers have to go before Identifiers
 const Spec = [
     // Whitespaces:
     [/^\s+/, null],
@@ -14,13 +15,27 @@ const Spec = [
     [/^\}/, '}'],
     [/^\(/, '('],
     [/^\)/, ')'],
+    [/^,/, ','],
+
+    // Keywords
+    [/^\blet\b/, 'let'],
+    [/^\bif\b/, "if"],
+    [/^\belse\b/, 'else'],
+    
+    // Numbers:
+    [/^\d+/, 'NUMBER'],
+
+    // Identifiers:
+    [/^\w+/ ,'IDENTIFIER'],
+
+    // Assignment
+    [/^=/, 'SIMPLE_ASSIGNMENT'],
+    [/^[\*\/\+\-]=/, 'COMPLEX_ASSIGNMENT'],
 
     // Math operators:
     [/^[+\-]/, 'ADDITIVE_OPERATOR'],
     [/^[\*\/]/, 'MULTIPLICATIVE_OPERATOR'],
-
-    // Numbers:
-    [/^\d+/, 'NUMBER'],
+    [/^[><]=?/, 'RELATIONAL_OPERATOR'],
 
     // Strings:
     [/^"[^"]*"/, 'STRING'],

@@ -1,6 +1,6 @@
 import Tokenizer from "./Tokenizer.ts"
 
-import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement } from "./Models.ts"
+import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement } from "./Models.ts"
 
 export default class Parser {
     _str: string
@@ -49,14 +49,37 @@ export default class Parser {
         return statementList
     }
 
-    Statement(): BlockStatement | ExpressionStatement | EmptyStatement {
+    Statement(): Statement {
         switch (this._lookahead?.type) {
             case ';':
                 return this.EmptyStatement()
+            case 'if':
+                return this.IfStatement()
             case '{':
                 return this.BlockStatement()
+            case 'let':
+                return this.VariableStatement()
             default:
                 return this.ExpressionStatement()
+        }
+    }
+
+    IfStatement(): IfStatement {
+        this._eat('if')
+        this._eat('(')
+        const test = this.Expression()
+        this._eat(')')
+
+        const consequent = this.Statement()
+        const alternate = this._lookahead != null && this._lookahead.type === 'else' ?
+            this._eat('else') && this.Statement()
+            : null;
+
+        return {
+            type: 'IfStatement',
+            test,
+            consequent,
+            alternate,
         }
     }
 
@@ -82,6 +105,46 @@ export default class Parser {
         }
     }
 
+    VariableStatement(): VariableStatement {
+        this._eat('let')
+        const declarations = this.VariableDeclarationList()
+        this._eat(';')
+
+        return {
+            type: 'VariableStatement',
+            declarations
+        }
+    }
+
+    VariableDeclarationList(): VariableDeclaration[] {
+        const declarations = []
+
+        do {
+            declarations.push(this.VariableDeclaration())
+        } while (this._lookahead?.type === ',' && this._eat(','))
+
+        return declarations
+    }
+
+    VariableDeclaration(): VariableDeclaration {
+        const id = this.Identifier()
+
+        const init = this._lookahead?.type !== ';' && this._lookahead?.type !== ',' ?
+            this.VariableInitializer()
+            : null;
+
+        return {
+            type: 'VariableDeclaration',
+            id,
+            init
+        }
+    }
+
+    VariableInitializer() {
+        this._eat('SIMPLE_ASSIGNMENT')
+        return this.AssignmentExpression()
+    }
+
     EmptyStatement(): EmptyStatement {
         this._eat(';')
         return {
@@ -89,8 +152,54 @@ export default class Parser {
         }
     }
 
+    // Relational expression has the lowest priority therefore it's called here
+    // Each expression propages depending on priority
+    // Assignment < Relational < Addition < Multiplication < Parenthesis
     Expression(): Expression {
-        return this.AdditiveExpression()
+        return this.AssignmentExpression()
+    }
+
+    AssignmentExpression(): any {
+        const left = this.RelationalExpression()
+
+        if (!this._isAssignmentOperator(this._lookahead!.type)) {
+            return left
+        } else {
+            return {
+                type: 'AssignmentExpression',
+                operator: this.AssignmentOperator(),
+                left: this._checkValidAssignmentTarget(left),
+                // Recursive propagation
+                right: this.AssignmentExpression() 
+            }
+        }
+    }
+
+    AssignmentOperator() {
+        if (this._lookahead?.type === 'SIMPLE_ASSIGNMENT') {
+            return this._eat('SIMPLE_ASSIGNMENT')?.value
+        } else {
+            return this._eat('COMPLEX_ASSIGNMENT')?.value
+        }
+    }
+
+    LeftHandSideExpression() {
+        return this.Identifier()
+    }
+
+    Identifier(): Identifier {
+        const name = this._eat('IDENTIFIER')?.value as string
+        return {
+            type: 'Identifier',
+            name,
+        }
+    }
+
+    RelationalExpression() {
+        return this._BinaryExpression(
+            'AdditiveExpression',
+            'RELATIONAL_OPERATOR'
+        )
     }
 
     /**
@@ -112,8 +221,8 @@ export default class Parser {
     }
 
     // Helper function to avoid repetition in addition and multiplication expressions
-    _BinaryExpression(builder_name: 'PrimaryExpression' | 'MultiplicativeExpression', 
-    operator_token: 'MULTIPLICATIVE_OPERATOR' | 'ADDITIVE_OPERATOR') {
+    _BinaryExpression(builder_name: 'PrimaryExpression' | 'MultiplicativeExpression' | 'AdditiveExpression', 
+    operator_token: 'MULTIPLICATIVE_OPERATOR' | 'ADDITIVE_OPERATOR' | 'RELATIONAL_OPERATOR') {
         let left: any = this[builder_name]()
 
         while(this._lookahead?.type === operator_token) {
@@ -140,11 +249,14 @@ export default class Parser {
     }
 
     PrimaryExpression() {
+        if (this._isLiteral(this._lookahead!.type)) {
+            return this.Literal()
+        }
         switch(this._lookahead?.type) {
             case '(':
                 return this.ParenthesizedExpression()
             default:
-                return this.Literal()
+                return this.LeftHandSideExpression()
         }
     }
 
@@ -194,5 +306,21 @@ export default class Parser {
         this._lookahead = this._tokenizer.getNextToken()
 
         return token
+    }
+
+    _isLiteral(token_type: string) {
+        return token_type === 'NUMBER' || token_type === 'STRING'
+    }
+
+    _checkValidAssignmentTarget(node: any) {
+        if(node.type === 'Identifier') {
+            return node
+        }
+
+        throw new SyntaxError(`Invalid left-hand side in assignment expression`)
+    }
+
+    _isAssignmentOperator(token_type: string) {
+        return token_type === 'SIMPLE_ASSIGNMENT' || token_type === 'COMPLEX_ASSIGNMENT'
     }
 }
