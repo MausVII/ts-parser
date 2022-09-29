@@ -8,7 +8,8 @@ export type Program = {
     body: Statement[]
 }
 
-export type Statement = IfStatement | BlockStatement | ExpressionStatement | VariableStatement | EmptyStatement
+export type Statement = IfStatement | IterationStatement | BlockStatement | ExpressionStatement 
+    | FunctionDeclaration | ReturnStatement | VariableStatement | EmptyStatement
 
 export type Literal = StringLiteral | NumericLiteral | BooleanLiteral | NullLiteral;
 
@@ -36,11 +37,37 @@ export type BlockStatement = {
     body: Statement[]
 }
 
+export type FunctionDeclaration = {
+    type: 'FunctionDeclaration',
+    name: Identifier,
+    params: Identifier[],
+    body: BlockStatement
+}
+
 export type IfStatement = {
     type: 'IfStatement',
     test: Expression,
     consequent: Statement,
     alternate: Statement | null
+}
+
+export type IterationStatement = {
+    type: string,
+    test: Expression,
+    body: Statement
+} | ForStatement;
+
+export type ForStatement = {
+    type: 'ForStatement',
+    init: VariableStatement | Expression | null,
+    test: Expression | null,
+    update: Expression | null
+    body: BlockStatement
+}
+
+export type ReturnStatement = {
+    type: 'ReturnStatement',
+    argument: Expression | null
 }
 
 export type ExpressionStatement = {

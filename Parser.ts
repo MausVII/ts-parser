@@ -1,6 +1,6 @@
 import Tokenizer from "./Tokenizer.ts"
 
-import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement, Literal, StringLiteral, NumericLiteral, BooleanLiteral, NullLiteral, UnaryExpression } from "./Models.ts"
+import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement, Literal, StringLiteral, NumericLiteral, BooleanLiteral, NullLiteral, UnaryExpression, IterationStatement, ForStatement, FunctionDeclaration, ReturnStatement } from "./Models.ts"
 
 export default class Parser {
     _str: string
@@ -59,8 +59,53 @@ export default class Parser {
                 return this.BlockStatement()
             case 'let':
                 return this.VariableStatement()
+            case 'def':
+                return this.FunctionDeclaration()
+            case 'return':
+                return this.ReturnStatement()
+            case 'while':
+            case 'do':
+            case 'for':
+                return this.IterationStatement()
             default:
                 return this.ExpressionStatement()
+        }
+    }
+
+    FunctionDeclaration(): FunctionDeclaration {
+        this._eat('def')
+        const name = this.Identifier()
+
+        this._eat('(')
+        const params = this._lookahead?.type !== ')' ? this.FormalParameterList() : []
+        this._eat(')')
+
+        const body = this.BlockStatement()
+
+        return {
+            type: 'FunctionDeclaration',
+            name,
+            params,
+            body
+        }
+    }
+
+    FormalParameterList() {
+        const params = []
+        do {
+            params.push(this.Identifier())
+        } while (this._lookahead?.type === ',' && this._eat(','))
+
+        return params
+    }
+
+    ReturnStatement(): ReturnStatement {
+        this._eat('return')
+        const argument = this._lookahead?.type !== ';' ? this.Expression() : null
+        this._eat(';')
+        return {
+            type: 'ReturnStatement',
+            argument
         }
     }
 
@@ -81,6 +126,83 @@ export default class Parser {
             consequent,
             alternate,
         }
+    }
+
+    IterationStatement(): IterationStatement {
+        switch (this._lookahead?.type) {
+            case 'while':
+                return this.WhileStatement()
+            case 'do':
+                return this.DoWhileStatement()
+            case 'for':
+                return this.ForStatement()
+            default:
+                return this.WhileStatement()
+        }
+    }
+
+    WhileStatement() {
+        this._eat('while')
+        this._eat('(')
+        const test = this.Expression()
+        this._eat(')')
+
+        const body = this.Statement()
+
+        return {
+            type: 'WhileStatement',
+            test,
+            body
+        }
+    }
+
+    DoWhileStatement() {
+        this._eat('do')
+        const body = this.Statement()
+        
+        this._eat('while')
+        this._eat('(')
+        const test = this.Expression()
+        this._eat(')')
+        this._eat(';')
+
+        return {
+            type: 'DoWhileStatement',
+            body,
+            test,
+        }
+    }
+
+    ForStatement(): ForStatement {
+        this._eat('for')
+        this._eat('(')
+        
+        const init = this._lookahead?.type !== ';' ? this.ForStatementInit() : null
+        this._eat(';')
+
+        const test = this._lookahead?.type !== ';' ? this.Expression() : null
+        this._eat(';')
+
+        const update = this._lookahead?.type !== ')' ? this.Expression() : null
+        this._eat(')')
+
+        const body = this.Statement() as BlockStatement
+
+        return {
+            type: 'ForStatement',
+            init,
+            test,
+            update,
+            body
+        }
+    }
+
+    ForStatementInit() {
+        if(this._lookahead?.type === 'let') {
+            return this.VariableStatement(false)
+        }
+
+        return this.Expression()
     }
 
     BlockStatement(): BlockStatement {
@@ -105,10 +227,11 @@ export default class Parser {
         }
     }
 
-    VariableStatement(): VariableStatement {
+    // eat_semicolor is needed in for statement variable initializations
+    VariableStatement(eat_semicolon = true): VariableStatement {
         this._eat('let')
         const declarations = this.VariableDeclarationList()
-        this._eat(';')
+        if (eat_semicolon) this._eat(';')
 
         return {
             type: 'VariableStatement',
