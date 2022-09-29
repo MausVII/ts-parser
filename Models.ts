@@ -57,6 +57,13 @@ export type IterationStatement = {
     body: Statement
 } | ForStatement;
 
+export type MemberExpression = {
+    type: 'MemberExpression',
+    computed: boolean,
+    object: Identifier,
+    property: Identifier | Expression
+}
+
 export type ForStatement = {
     type: 'ForStatement',
     init: VariableStatement | Expression | null,
@@ -99,7 +106,7 @@ export type EmptyStatement = {
 export type Expression = {
     type: string,
     value: number | string
-}
+} | MemberExpression
 
 export type Identifier = {
     type: 'Identifier',

@@ -1,6 +1,6 @@
 import Tokenizer from "./Tokenizer.ts"
 
-import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement, Literal, StringLiteral, NumericLiteral, BooleanLiteral, NullLiteral, UnaryExpression, IterationStatement, ForStatement, FunctionDeclaration, ReturnStatement } from "./Models.ts"
+import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement, Literal, StringLiteral, NumericLiteral, BooleanLiteral, NullLiteral, UnaryExpression, IterationStatement, ForStatement, FunctionDeclaration, ReturnStatement, MemberExpression } from "./Models.ts"
 
 export default class Parser {
     _str: string
@@ -315,7 +315,37 @@ export default class Parser {
     }
 
     LeftHandSideExpression() {
-        return this.PrimaryExpression()
+        return this.MemberExpression()
+    }
+
+    MemberExpression() {
+        let object: any = this.PrimaryExpression()
+        while (this._lookahead?.type === '.' || this._lookahead?.type === '[') {
+            if (this._lookahead.type == '.') {
+                this._eat('.')
+                const property = this.Identifier()
+                // Recursivily update object
+                object = {
+                    type: 'MemberExpression',
+                    computed: false,
+                    object,
+                    property
+                }
+            } 
+            if (this._lookahead.type === '[') {
+                this._eat('[')
+                const property = this.Expression()
+                this._eat(']')
+                object = {
+                    type: 'MemberExpression',
+                    computed: true,
+                    object,
+                    property
+                }
+            }
+        }
+
+        return object
     }
 
     Identifier(): Identifier {
@@ -521,7 +551,7 @@ export default class Parser {
     }
 
     _checkValidAssignmentTarget(node: any) {
-        if(node.type === 'Identifier') {
+        if(node.type === 'Identifier' || node.type === 'MemberExpression') {
             return node
         }
 
