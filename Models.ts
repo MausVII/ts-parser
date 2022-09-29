@@ -10,6 +10,27 @@ export type Program = {
 
 export type Statement = IfStatement | BlockStatement | ExpressionStatement | VariableStatement | EmptyStatement
 
+export type Literal = StringLiteral | NumericLiteral | BooleanLiteral | NullLiteral;
+
+export type StringLiteral = {
+    type: 'StringLiteral',
+    value: string
+}
+
+export type NumericLiteral = {
+    type: 'NumericLiteral',
+    value: number
+}
+
+export type BooleanLiteral = {
+    type: 'BooleanLiteral',
+    value: true | false
+}
+
+export type NullLiteral = {
+    type: 'NullLiteral',
+    value: null
+}
 export type BlockStatement = {
     type: "BlockStatement",
     body: Statement[]
@@ -30,6 +51,12 @@ export type ExpressionStatement = {
 export type VariableStatement = {
     type: 'VariableStatement',
     declarations: VariableDeclaration[]
+}
+
+export type UnaryExpression = {
+    type: 'UnaryExpression',
+    operator: string,
+    argument: Expression | Identifier
 }
 
 export type VariableDeclaration = {

@@ -1,6 +1,6 @@
 import Tokenizer from "./Tokenizer.ts"
 
-import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement } from "./Models.ts"
+import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement, Literal, StringLiteral, NumericLiteral, BooleanLiteral, NullLiteral, UnaryExpression } from "./Models.ts"
 
 export default class Parser {
     _str: string
@@ -192,7 +192,7 @@ export default class Parser {
     }
 
     LeftHandSideExpression() {
-        return this.Identifier()
+        return this.PrimaryExpression()
     }
 
     Identifier(): Identifier {
@@ -230,13 +230,13 @@ export default class Parser {
 
     MultiplicativeExpression() {
         return this._BinaryExpression(
-            'PrimaryExpression',
+            'UnaryExpression',
             'MULTIPLICATIVE_OPERATOR'
         )
     }
 
     // Helper function to avoid repetition in addition and multiplication expressions
-    _BinaryExpression(builder_name: 'PrimaryExpression' | 'RelationalExpression' | 'MultiplicativeExpression' | 'AdditiveExpression', 
+    _BinaryExpression(builder_name: 'PrimaryExpression' | 'RelationalExpression' | 'MultiplicativeExpression' | 'AdditiveExpression' | 'UnaryExpression', 
     operator_token: 'EQUALITY_OPERATOR' | 'MULTIPLICATIVE_OPERATOR' | 'ADDITIVE_OPERATOR' | 'RELATIONAL_OPERATOR') {
         let left: any = this[builder_name]()
 
@@ -283,19 +283,43 @@ export default class Parser {
         return expression
     }
 
-    PrimaryExpression() {
+    UnaryExpression(): any {
+        let operator = null
+        switch (this._lookahead?.type) {
+            case 'ADDITIVE_OPERATOR':
+                operator = this._eat('ADDITIVE_OPERATOR')?.value
+                break;
+            case 'LOGICAL_NOT':
+                operator = this._eat('LOGICAL_NOT')?.value
+                break;
+        }
+
+        if (operator !== null) {
+            return {
+                type: 'UnaryExpression',
+                operator: operator as string,
+                argument: this.UnaryExpression() as Identifier
+            }
+        }
+
+        return this.LeftHandSideExpression()
+    }
+
+    PrimaryExpression(): Expression | Literal | Identifier {
         if (this._isLiteral(this._lookahead!.type)) {
             return this.Literal()
         }
         switch(this._lookahead?.type) {
             case '(':
                 return this.ParenthesizedExpression()
+            case 'IDENTIFIER':
+                return this.Identifier()
             default:
                 return this.LeftHandSideExpression()
         }
     }
 
-    Literal() {
+    Literal(): Literal {
         switch(this._lookahead?.type) {
             case 'NUMBER':
                 return this.NumericLiteral()
@@ -312,7 +336,7 @@ export default class Parser {
         }
     }
 
-    StringLiteral() {
+    StringLiteral(): StringLiteral {
         const token = this._eat('STRING')
         const val = token?.value as string
         return {
@@ -321,7 +345,7 @@ export default class Parser {
         }
     }
 
-    NumericLiteral() {
+    NumericLiteral(): NumericLiteral {
         const token = this._eat('NUMBER')
         return {
             type: 'NumericLiteral',
@@ -329,7 +353,7 @@ export default class Parser {
         }
     }
 
-    BooleanLiteral(bool_type: boolean) {
+    BooleanLiteral(bool_type: boolean): BooleanLiteral {
         this._eat(bool_type ? 'true' : 'false')
         return {
             type: 'BooleanLiteral',
@@ -337,7 +361,7 @@ export default class Parser {
         }
     }
 
-    NullLiteral() {
+    NullLiteral(): NullLiteral {
         this._eat('null')
         return {
             type: 'NullLiteral',
