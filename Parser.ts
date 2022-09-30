@@ -315,7 +315,19 @@ export default class Parser {
     }
 
     LeftHandSideExpression() {
-        return this.MemberExpression()
+        return this.CallMemberExpression()
+    }
+
+    CallMemberExpression() {
+        const member = this.MemberExpression()
+
+        // If actually call expression
+        if (this._lookahead?.type === ('(')) {
+            return this._CallExpression(member)
+        }
+
+        // Otherwise return MemberExpression
+        return member;
     }
 
     MemberExpression() {
@@ -427,6 +439,39 @@ export default class Parser {
         }
 
         return left
+    }
+
+    _CallExpression(callee: Expression) {
+        let callExpression: any = {
+            type: 'CallExpression',
+            callee,
+            arguments: this.Arguments()
+        }
+
+        // Handle nested chain call
+        if (this._lookahead?.type === '(') {
+            callExpression = this._CallExpression(callExpression)
+        }
+
+        return callExpression
+    }
+
+    Arguments() {
+        this._eat('(')
+        const argument_list = this._lookahead?.type !== ')' ? this.ArgumentList() : []
+        this._eat(')')
+
+        return argument_list
+    }
+
+    ArgumentList() {
+        const argument_list = []
+
+        do {
+            argument_list.push(this.AssignmentExpression())
+        } while (this._lookahead?.type === ',' && this._eat(','))
+
+        return argument_list
     }
 
     ParenthesizedExpression() {
