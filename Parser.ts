@@ -1,6 +1,6 @@
 import Tokenizer from "./Tokenizer.ts"
 
-import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement, Literal, StringLiteral, NumericLiteral, BooleanLiteral, NullLiteral, UnaryExpression, IterationStatement, ForStatement, FunctionDeclaration, ReturnStatement, MemberExpression } from "./Models.ts"
+import { Token, Expression, ExpressionStatement, BlockStatement, Program, EmptyStatement, VariableDeclaration, Identifier, VariableStatement, Statement, IfStatement, Literal, StringLiteral, NumericLiteral, BooleanLiteral, NullLiteral, UnaryExpression, IterationStatement, ForStatement, FunctionDeclaration, ReturnStatement, MemberExpression, NewExpression, ThisExpression, SuperExpression, ClassDeclaration } from "./Models.ts"
 
 export default class Parser {
     _str: string
@@ -61,6 +61,8 @@ export default class Parser {
                 return this.VariableStatement()
             case 'def':
                 return this.FunctionDeclaration()
+            case 'class':
+                return this.ClassDeclaration()
             case 'return':
                 return this.ReturnStatement()
             case 'while':
@@ -70,6 +72,25 @@ export default class Parser {
             default:
                 return this.ExpressionStatement()
         }
+    }
+
+    ClassDeclaration(): ClassDeclaration {
+        this._eat('class')
+        const id = this.Identifier()
+        const superClass = this._lookahead?.type === 'extends' ? this.ClassExtends() : null
+        const body = this.BlockStatement()
+
+        return {
+            type: 'ClassDeclaration',
+            id,
+            superClass,
+            body
+        }
+    }
+
+    ClassExtends() {
+        this._eat('extends')
+        return this.Identifier()
     }
 
     FunctionDeclaration(): FunctionDeclaration {
@@ -319,6 +340,10 @@ export default class Parser {
     }
 
     CallMemberExpression() {
+        if (this._lookahead?.type === 'super') {
+            return this._CallExpression(this.Super())
+        }
+
         const member = this.MemberExpression()
 
         // If actually call expression
@@ -503,6 +528,29 @@ export default class Parser {
         return this.LeftHandSideExpression()
     }
 
+    NewExpression(): NewExpression {
+        this._eat('new')
+        return {
+            type: 'NewExpression',
+            callee: this.MemberExpression(),
+            arguments: this.Arguments()
+        }
+    }
+
+    ThisExpression(): ThisExpression {
+        this._eat('this')
+        return {
+            type: 'ThisExpression'
+        }
+    }
+
+    Super(): SuperExpression {
+        this._eat('super')
+        return {
+            type: 'Super'
+        }
+    }
+
     PrimaryExpression(): Expression | Literal | Identifier {
         if (this._isLiteral(this._lookahead!.type)) {
             return this.Literal()
@@ -512,6 +560,10 @@ export default class Parser {
                 return this.ParenthesizedExpression()
             case 'IDENTIFIER':
                 return this.Identifier()
+            case 'this':
+                return this.ThisExpression()
+            case 'new':
+                return this.NewExpression()
             default:
                 return this.LeftHandSideExpression()
         }

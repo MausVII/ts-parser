@@ -9,10 +9,16 @@ export type Program = {
 }
 
 export type Statement = IfStatement | IterationStatement | BlockStatement | ExpressionStatement 
-    | FunctionDeclaration | ReturnStatement | VariableStatement | EmptyStatement
+    | ClassDeclaration | FunctionDeclaration | ReturnStatement | VariableStatement | EmptyStatement
 
 export type Literal = StringLiteral | NumericLiteral | BooleanLiteral | NullLiteral;
 
+export type ClassDeclaration = {
+    type: 'ClassDeclaration',
+    id: Identifier,
+    superClass: Identifier | null,
+    body: BlockStatement
+}
 export type StringLiteral = {
     type: 'StringLiteral',
     value: string
@@ -106,7 +112,21 @@ export type EmptyStatement = {
 export type Expression = {
     type: string,
     value: number | string
-} | MemberExpression
+} | MemberExpression | ThisExpression | NewExpression | SuperExpression
+
+export type ThisExpression = {
+    type: 'ThisExpression'
+}
+
+export type NewExpression = {
+    type: 'NewExpression',
+    callee: Expression,
+    arguments: Expression[]
+}
+
+export type SuperExpression = {
+    type: 'Super'
+}
 
 export type Identifier = {
     type: 'Identifier',
